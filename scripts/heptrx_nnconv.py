@@ -18,12 +18,12 @@ import tqdm
 import argparse
 directed = False
 sig_weight = 1.0
-bkg_weight = 0.15
+bkg_weight = 1.0
 batch_size = 32
 n_epochs = 20
 lr = 0.01
 hidden_dim = 64
-n_iters = 6
+n_iters = 12
 
 from training.gnn import GNNTrainer
 
@@ -31,6 +31,50 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('using device %s'%device)
 
 import logging
+def test(model,loader,total):
+    model.eval()
+    correct = 0
+
+    sum_loss = 0
+    sum_correct = 0
+    sum_truepos = 0
+    sum_trueneg = 0
+    sum_falsepos = 0
+    sum_falseneg = 0
+    sum_true = 0
+    sum_false = 0
+    sum_total = 0
+    t = tqdm.tqdm(enumerate(loader),total=total/batch_size)
+    for i,data in t:
+        data = data.to(device)
+        batch_target = data.y
+        batch_output = model(data)
+        batch_loss_item = F.binary_cross_entropy(batch_output, batch_target).item()
+        t.set_description("batch loss = %.5f" % batch_loss_item)
+        t.refresh() # to show immediately the update
+        sum_loss += batch_loss_item
+        matches = ((batch_output > 0.5) == (batch_target > 0.5))
+        true_pos = ((batch_output > 0.5) & (batch_target > 0.5))
+        true_neg = ((batch_output < 0.5) & (batch_target < 0.5))
+        false_pos = ((batch_output > 0.5) & (batch_target < 0.5))
+        false_neg = ((batch_output < 0.5) & (batch_target > 0.5))
+        sum_truepos += true_pos.sum().item()
+        sum_trueneg += true_neg.sum().item()
+        sum_falsepos += false_pos.sum().item()
+        sum_falseneg += false_neg.sum().item()
+        sum_correct += matches.sum().item()
+        sum_true += batch_target.sum().item()
+        sum_false += (batch_target < 0.5).sum().item()
+        sum_total += matches.numel()
+
+    print('scor', sum_correct,
+          'stru', sum_true,
+          'stp', sum_truepos,
+          'stn', sum_trueneg,
+          'sfp', sum_falsepos,
+          'sfn', sum_falseneg,
+          'stot', sum_total)
+    return sum_loss/(i+1), sum_correct / sum_total, sum_truepos/sum_true, sum_falsepos / sum_false, sum_falseneg / sum_true, sum_truepos/(sum_truepos+sum_falsepos + 1e-6)
     
 def main(args):    
 
@@ -56,7 +100,7 @@ def main(args):
     num_classes = d[0].y.max().item() + 1 if d[0].y.dim() == 1 else d[0].y.size(1)
 
     trainer = GNNTrainer(real_weight=sig_weight, fake_weight=bkg_weight, 
-                         output_dir='/home/lagray/hgcal_ldrd/', device=device)
+                         output_dir='/home/liumy871227/muon_gnn/', device=device)
 
     trainer.logger.setLevel(logging.DEBUG)
     strmH = logging.StreamHandler()
