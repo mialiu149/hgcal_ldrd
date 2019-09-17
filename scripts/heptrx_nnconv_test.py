@@ -76,11 +76,11 @@ def main(args):
     edge_index = []
     simmatched = []
     for i,data in t:
+        data = data.to(device)
+        out.append(model(data).cpu().detach().numpy())
         x.append(data.x.cpu().detach().numpy())
         y.append(data.y.cpu().detach().numpy())
         edge_index.append(data.edge_index.cpu().detach().numpy())
-        data = data.to(device)
-
     out = awkward.fromiter(out)
     x = awkward.fromiter(x)
     y = awkward.fromiter(y)
@@ -89,7 +89,8 @@ def main(args):
     predicted_edge = (out > 0.5)
     truth_edge = (y > 0.5)
     node_layer = x[:,:,2]
-
+    print("score:",out)
+    print(y)
     predicted_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][predicted_edge], edge_index[:,1][predicted_edge]], axis=1)
     predicted_connected_node_indices = awkward.fromiter(map(np.unique, predicted_connected_node_indices))
     truth_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][truth_edge],edge_index[:,1][truth_edge]], axis=1)
