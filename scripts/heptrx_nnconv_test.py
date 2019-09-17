@@ -59,7 +59,6 @@ def main(args):
           (model, sum(p.numel()
                       for p in model.parameters())))
     print('Testing with %s samples'%test_samples)
-    print(torch.load(model_fname)) 
     model.load_state_dict(torch.load(model_fname)['model'])
 
     test_loss, test_acc, test_eff, test_fp, test_fn, test_pur = test(model, test_loader, test_samples)
@@ -88,21 +87,22 @@ def main(args):
 
     predicted_edge = (out > 0.5)
     truth_edge = (y > 0.5)
+    fake_edge = (y < 0.5)
     node_layer = x[:,:,2]
-    print("score:",out)
-    print(y)
+    truth_edge_score = out[truth_edge]
+    fake_edge_score = out[fake_edge]
     predicted_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][predicted_edge], edge_index[:,1][predicted_edge]], axis=1)
     predicted_connected_node_indices = awkward.fromiter(map(np.unique, predicted_connected_node_indices))
     truth_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][truth_edge],edge_index[:,1][truth_edge]], axis=1)
     truth_connected_node_indices = awkward.fromiter(map(np.unique, truth_connected_node_indices))
     
-    
     fig,axes = plt.subplots(figsize=(12, 7))
-    _, bins,_ = axes.hist(out, bins=100)
-    plt.title("Distribution of output score")
-    plt.ylabel("events (pos+neg)")
-    plt.xlabel("Ratio")
-    #plt.legend(loc='upper left')
+    _, bins,_ = axes.hist([truth_edge_score.flatten(),fake_edge_score.flatten()], bins=100,color=['b','r'],label=['true edge','false edge'],histtype='step',fill=False)
+    plt.title("Edge classifier score on test data")
+    plt.ylabel("Number of edges")
+    plt.xlabel("Classifier score")
+    plt.legend(loc='upper left')
+    plt.yscale('log')
     figs.append(fig)
 
 
