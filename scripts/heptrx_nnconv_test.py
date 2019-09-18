@@ -37,7 +37,7 @@ def main(args):
     
     directed = False
     path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'single_mu')
-    print(path)
+    #print(path)
     full_dataset = HitGraphDataset(path, directed=directed)
     fulllen = len(full_dataset)
     tv_frac = 0.10
@@ -76,6 +76,7 @@ def main(args):
     simmatched = []
     for i,data in t:
         data = data.to(device)
+        #print(data)
         out.append(model(data).cpu().detach().numpy())
         x.append(data.x.cpu().detach().numpy())
         y.append(data.y.cpu().detach().numpy())
@@ -85,26 +86,30 @@ def main(args):
     y = awkward.fromiter(y)
     edge_index = awkward.fromiter(edge_index)
 
-    predicted_edge = (out > 0.5)
-    truth_edge = (y > 0.5)
+    cut = 0.5
+    predicted_edge = (out > cut)
+    true_edge = (y > 0.5)
     fake_edge = (y < 0.5)
-    node_layer = x[:,:,2]
-    truth_edge_score = out[truth_edge]
+    node_layer = x[-2]
+    true_edge_score = out[true_edge]
     fake_edge_score = out[fake_edge]
     predicted_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][predicted_edge], edge_index[:,1][predicted_edge]], axis=1)
     predicted_connected_node_indices = awkward.fromiter(map(np.unique, predicted_connected_node_indices))
-    truth_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][truth_edge],edge_index[:,1][truth_edge]], axis=1)
-    truth_connected_node_indices = awkward.fromiter(map(np.unique, truth_connected_node_indices))
-    
+    true_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][true_edge],edge_index[:,1][true_edge]], axis=1)
+    true_connected_node_indices = awkward.fromiter(map(np.unique, true_connected_node_indices))
+    #def buildtracks(edges):
+        
+    #   return tracks
+    #factorize the plotting part
     fig,axes = plt.subplots(figsize=(12, 7))
-    _, bins,_ = axes.hist([truth_edge_score.flatten(),fake_edge_score.flatten()], bins=100,color=['b','r'],label=['true edge','false edge'],histtype='step',fill=False)
+    _, bins,_ = axes.hist([true_edge_score.flatten(),fake_edge_score.flatten()],weights=[[1]*len(true_edge_score.flatten()),[0.15]*len(fake_edge_score.flatten())], bins=100,color=['b','r'],label=['true edge','false edge'],histtype='step',fill=False)
+
     plt.title("Edge classifier score on test data")
     plt.ylabel("Number of edges")
     plt.xlabel("Classifier score")
     plt.legend(loc='upper left')
     plt.yscale('log')
     figs.append(fig)
-
 
     # visualisation
     #idxs = [0]

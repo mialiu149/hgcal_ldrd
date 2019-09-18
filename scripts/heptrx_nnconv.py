@@ -18,7 +18,7 @@ import tqdm
 import argparse
 directed = False
 sig_weight = 1.0
-bkg_weight = 1.0
+bkg_weight = 0.15
 batch_size = 32
 n_epochs = 20
 lr = 0.01
