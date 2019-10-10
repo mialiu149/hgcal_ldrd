@@ -124,6 +124,8 @@ class HitDataset(Dataset):
             x = g.X.astype(np.float32)[:,3:]
             pos = g.X.astype(np.float32)[:,:3]
             y = g.y.astype(np.float32)
+            pt = g.pt.astype(np.float32)
+            eta = g.eta.astype(np.float32)
             if (y.sum() != 0):
                 weight_in_event = (y * (1 / y.sum()) + (1-y) * (1 / (y.shape[0] - y.sum()))).astype(np.float32)
             else:
@@ -137,6 +139,8 @@ class HitDataset(Dataset):
                             pos=torch.from_numpy(pos),
                             y=torch.from_numpy(y),
                             weight_in_event=torch.from_numpy(weight_in_event),
+                            pt = torch.from_numpy(pt),
+                            eta = torch.from_numpy(eta),
                             xgboost_score=torch.from_numpy(pred))
             
             

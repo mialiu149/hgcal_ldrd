@@ -12,8 +12,7 @@ import tqdm
 
 # A Graph is a namedtuple of matrices (X, Ri, Ro, y)
 
-Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y', 'simmatched'])
-
+Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y','pt','eta'])
 
 
 def graph_to_sparse(graph):
@@ -21,11 +20,10 @@ def graph_to_sparse(graph):
     Ro_rows, Ro_cols = graph.Ro.nonzero()
     return dict(X=graph.X, y=graph.y,
                 Ri_rows=Ri_rows, Ri_cols=Ri_cols,
-                Ro_rows=Ro_rows, Ro_cols=Ro_cols,
-                simmatched=graph.simmatched
+                Ro_rows=Ro_rows, Ro_cols=Ro_cols
                )
 
-def sparse_to_graph(X, Ri_rows, Ri_cols, Ro_rows, Ro_cols, y, simmatched, dtype=np.float32):
+def sparse_to_graph(X, Ri_rows, Ri_cols, Ro_rows, Ro_cols, y, pt,eta,dtype=np.float32):
     n_nodes, n_edges = X.shape[0], Ri_rows.shape[0]
     spRi_idxs = np.stack([Ri_rows.astype(np.int64), Ri_cols.astype(np.int64)])
     # Ri_rows and Ri_cols have the same shape
@@ -40,7 +38,7 @@ def sparse_to_graph(X, Ri_rows, Ri_cols, Ro_rows, Ro_cols, y, simmatched, dtype=
     if y.dtype != np.uint8:
         y = y.astype(np.uint8)
 
-    return Graph(X, spRi, spRo, y, simmatched)
+    return Graph(X, spRi, spRo, y,pt,eta)
 
 
 def save_graph(graph, filename, sparse):
@@ -59,6 +57,7 @@ def save_graphs(graphs, filenames, sparse =True):
 def load_graph(filename, sparse =True):
     """Reade a single graph NPZ"""
     with np.load(filename) as f:
+#        print(dict(f.items()))
         if sparse:
             return sparse_to_graph(**dict(f.items()))
         else:

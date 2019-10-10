@@ -78,7 +78,7 @@ def test(model,loader,total):
     
 def main(args):    
 
-    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'single_mu')
+    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'single_mu_v0')
     print(path)
     full_dataset = HitGraphDataset(path, directed=directed)
     fulllen = len(full_dataset)
