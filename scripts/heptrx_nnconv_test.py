@@ -1,3 +1,4 @@
+#%%
 import os
 import os.path as osp
 import math
@@ -18,8 +19,6 @@ import argparse
 from models.gnn_geometric import GNNSegmentClassifier as Net
 from models.EdgeNet import EdgeNet
 
-from heptrx_nnconv import test
-
 from datasets.graph import draw_sample
 
 import awkward
@@ -33,10 +32,53 @@ n_iters = 12
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('using device %s'%device)
 
+def test(model,loader,total):
+    model.eval()
+    correct = 0
+    sum_loss = 0
+    sum_correct = 0
+    sum_truepos = 0
+    sum_trueneg = 0
+    sum_falsepos = 0
+    sum_falseneg = 0
+    sum_true = 0
+    sum_false = 0
+    sum_total = 0
+    t = tqdm.tqdm(enumerate(loader),total=total/batch_size)
+    for i,data in t:
+        data = data.to(device)
+        batch_target = data.y
+        batch_output = model(data)
+        batch_loss_item = F.binary_cross_entropy(batch_output, batch_target).item()
+        t.set_description("batch loss = %.5f" % batch_loss_item)
+        t.refresh() # to show immediately the update
+        sum_loss += batch_loss_item
+        matches = ((batch_output > 0.5) == (batch_target > 0.5))
+        true_pos = ((batch_output > 0.5) & (batch_target > 0.5))
+        true_neg = ((batch_output < 0.5) & (batch_target < 0.5))
+        false_pos = ((batch_output > 0.5) & (batch_target < 0.5))
+        false_neg = ((batch_output < 0.5) & (batch_target > 0.5))
+        sum_truepos += true_pos.sum().item()
+        sum_trueneg += true_neg.sum().item()
+        sum_falsepos += false_pos.sum().item()
+        sum_falseneg += false_neg.sum().item()
+        sum_correct += matches.sum().item()
+        sum_true += batch_target.sum().item()
+        sum_false += (batch_target < 0.5).sum().item()
+        sum_total += matches.numel()
+
+    print('scor', sum_correct,
+          'stru', sum_true,
+          'stp', sum_truepos,
+          'stn', sum_trueneg,
+          'sfp', sum_falsepos,
+          'sfn', sum_falseneg,
+          'stot', sum_total)
+    return sum_loss/(i+1), sum_correct / sum_total, sum_truepos/sum_true, sum_falsepos / sum_false, sum_falseneg / sum_true, sum_truepos/(sum_truepos+sum_falsepos + 1e-6)
+#%%
 def main(args):
-    
     directed = False
-    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'single_mu')
+    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'muon_graph_v4')
     #print(path)
     full_dataset = HitGraphDataset(path, directed=directed)
     fulllen = len(full_dataset)
@@ -44,11 +86,11 @@ def main(args):
     tv_num = math.ceil(fulllen*tv_frac)
     splits = np.cumsum([fulllen-2*tv_num,tv_num,tv_num])
     
-    test_dataset = torch.utils.data.Subset(full_dataset,np.arange(start=splits[0],stop=splits[1]))
+    test_dataset = HitGraphDataset(path, directed=directed, pre_filter=np.arange(start=splits[1],stop=splits[2]))
+    #np.arange(start=splits[2],stop=len(full_dataset)))
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-    
-    test_samples = len(test_dataset)
-
+    test_samples = len(test_loader)
+    print(len(test_loader))
     d = full_dataset
     num_features = d.num_features
     num_classes = d[0].y.max().item() + 1 if d[0].y.dim() == 1 else d[0].y.size(1)
@@ -64,8 +106,7 @@ def main(args):
     test_loss, test_acc, test_eff, test_fp, test_fn, test_pur = test(model, test_loader, test_samples)
     print('Testing: Loss: {:.4f}, Eff.: {:.4f}, FalsePos: {:.4f}, FalseNeg: {:.4f}, Purity: {:,.4f}'.format(test_loss, test_eff,
                                                                                                             test_fp, test_fn, test_pur))
-
-
+    print(len(test_loader))
     # plotting:
     figs = []
     t = tqdm.tqdm(enumerate(test_loader),total=test_samples/batch_size)
@@ -76,7 +117,6 @@ def main(args):
     simmatched = []
     for i,data in t:
         data = data.to(device)
-        #print(data)
         out.append(model(data).cpu().detach().numpy())
         x.append(data.x.cpu().detach().numpy())
         y.append(data.y.cpu().detach().numpy())
@@ -85,12 +125,32 @@ def main(args):
     x = awkward.fromiter(x)
     y = awkward.fromiter(y)
     edge_index = awkward.fromiter(edge_index)
+    import sklearn
+    fpr, tpr, _ = sklearn.metrics.roc_curve(y,out)
+    roc_auc = sklearn.metrics.auc(fpr, tpr)
+    plt.figure(figsize=(9,4))
 
+    # Plot the model outputs
+    plt.subplot(121)
+    binning=dict(bins=50, range=(0,1), histtype='bar')
+    plt.hist(flat_pred[flat_y<thresh], label='fake', **binning)
+    plt.hist(flat_pred[flat_y>thresh], label='true', **binning)
+    plt.xlabel('Model output')
+    plt.legend(loc=0)
+
+    # Plot the ROC curve
+    plt.subplot(122)
+    plt.plot(fpr, tpr)
+    plt.plot([0, 1], [0, 1], '--')
+    plt.xlabel('False positive rate')
+    plt.ylabel('True positive rate')
+    plt.title('ROC curve')
+ 
     cut = 0.5
     predicted_edge = (out > cut)
     true_edge = (y > 0.5)
     fake_edge = (y < 0.5)
-    node_layer = x[-2]
+    node_layer = x[-1]
     true_edge_score = out[true_edge]
     fake_edge_score = out[fake_edge]
     predicted_connected_node_indices = awkward.JaggedArray.concatenate([edge_index[:,0][predicted_edge], edge_index[:,1][predicted_edge]], axis=1)
@@ -110,12 +170,6 @@ def main(args):
     plt.legend(loc='upper left')
     plt.yscale('log')
     figs.append(fig)
-
-    # visualisation
-    #idxs = [0]
-    #for idx in idxs:
-    #    fig = draw_sample(x[idx].regular(), edge_index[idx].regular()[0], edge_index[idx].regular()[1], y[idx], out[idx])
-    #    figs.append(fig)
     
     import matplotlib.backends.backend_pdf
     pdf = matplotlib.backends.backend_pdf.PdfPages("test_plots.pdf")

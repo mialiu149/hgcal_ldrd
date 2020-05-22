@@ -11,11 +11,11 @@ import torch
 from torch import nn
 from torch.optim.lr_scheduler import LambdaLR
 import tqdm
+from torch_geometric.data import DataLoader
 
 from models import get_model
 # Locals
 from .base import base
-
 
 class GNNTrainer(base):
     """Trainer code for basic classification problems with binomial cross entropy."""
@@ -43,9 +43,7 @@ class GNNTrainer(base):
 
         self.lr_scheduler = None
         if lr_scaling is not None:
-            self.lr_scheduler = lr_scaling(self.optimizer)
-           
-
+            self.lr_scheduler = lr_scaling(self.optimizer)          
     # @profile
     def train_epoch(self, data_loader):
         """Train for one epoch"""
@@ -55,10 +53,13 @@ class GNNTrainer(base):
         start_time = time.time()
         self.lr_scheduler.step()
         # Loop over training batches
+        print(type(data_loader))
         total = len(data_loader.dataset)
         batch_size = data_loader.batch_size
         t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
-        for i,data in t:            
+        print("train for one epoch")
+        for i,data in t:    
+            print(i) 
             data = data.to(self.device)
             batch_target = data.y
             batch_weights_real = batch_target*self.real_weight

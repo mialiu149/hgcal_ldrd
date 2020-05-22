@@ -12,7 +12,7 @@ import tqdm
 
 # A Graph is a namedtuple of matrices (X, Ri, Ro, y)
 
-Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y','pt','eta'])
+Graph = namedtuple('Graph', ['X', 'Ri', 'Ro', 'y', 'pt','eta'])
 
 
 def graph_to_sparse(graph):
@@ -23,7 +23,7 @@ def graph_to_sparse(graph):
                 Ro_rows=Ro_rows, Ro_cols=Ro_cols
                )
 
-def sparse_to_graph(X, Ri_rows, Ri_cols, Ro_rows, Ro_cols, y, pt,eta,dtype=np.float32):
+def sparse_to_graph(X, Ri_rows, Ri_cols, Ro_rows, Ro_cols, y,pt,eta,dtype=np.float32):
     n_nodes, n_edges = X.shape[0], Ri_rows.shape[0]
     spRi_idxs = np.stack([Ri_rows.astype(np.int64), Ri_cols.astype(np.int64)])
     # Ri_rows and Ri_cols have the same shape
@@ -37,8 +37,8 @@ def sparse_to_graph(X, Ri_rows, Ri_cols, Ro_rows, Ro_cols, y, pt,eta,dtype=np.fl
 
     if y.dtype != np.uint8:
         y = y.astype(np.uint8)
-
-    return Graph(X, spRi, spRo, y,pt,eta)
+    
+    return Graph(X, spRi, spRo, y,pt, eta)
 
 
 def save_graph(graph, filename, sparse):

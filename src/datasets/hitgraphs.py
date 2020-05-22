@@ -22,14 +22,14 @@ from datasets.graph import load_graph
 
 class HitGraphDataset(Dataset):
     """PyTorch geometric dataset from processed hit information"""
-    
     def __init__(self, root,
                  directed = True,
                  transform = None,
-                 pre_transform = None):
+                 pre_transform = None,
+                 pre_filter=None):
         self._directed = directed
-        super(HitGraphDataset, self).__init__(root, transform, pre_transform)
-    
+        super(HitGraphDataset, self).__init__(root, transform, pre_transform, pre_filter)
+
     def download(self):
         pass #download from xrootd or something later
     
@@ -42,15 +42,21 @@ class HitGraphDataset(Dataset):
     @property
     def processed_file_names(self):
         if not hasattr(self,'processed_files'):
-            proc_names = ['data_{}.pt'.format(idx) for idx in range(len(self.raw_file_names))]
+            if self.pre_filter is not None:
+               proc_names =  ['data_{}.pt'.format(idx) for idx in self.pre_filter]
+            else:
+               proc_names = ['data_{}.pt'.format(idx) for idx in range(len(self.raw_file_names))]
             self.processed_files = [osp.join(self.processed_dir,name) for name in proc_names]
         return self.processed_files
     
     def __len__(self):
         return len(self.processed_file_names)
     
+    #def get(self, idx):
+    #    data = torch.load(self.processed_files[idx])
+    #    return data
     def get(self, idx):
-        data = torch.load(self.processed_files[idx])
+        data = torch.load(osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
         return data
     
     def process(self):
@@ -58,9 +64,8 @@ class HitGraphDataset(Dataset):
         path = self.processed_dir
         for idx,raw_path in enumerate(tqdm(self.raw_paths)):
             g = load_graph(raw_path)
-            
-            Ro = g.Ro[0].T.astype(np.int64)
-            Ri = g.Ri[0].T.astype(np.int64)
+            Ro = g.Ro[0].T.astype(np.int)
+            Ri = g.Ri[0].T.astype(np.int)
             
             i_out = Ro[Ro[:,1].argsort()][:,0]
             i_in  = Ri[Ri[:,1].argsort()][:,0]
@@ -78,6 +83,8 @@ class HitGraphDataset(Dataset):
                 outdata.y = torch.cat([outdata.y,outdata.y])
         
             torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
+
+
 
 class HitDataset(Dataset):
     """PyTorch geometric dataset from processed hit information"""
@@ -107,7 +114,7 @@ class HitDataset(Dataset):
         return len(self.processed_file_names)
     
     def get(self, idx):
-        data = torch.load(self.processed_files[idx])
+        data = torch.load(self.processed_files[idx.astype(torch.long)])
         return data
     
     def process(self):
