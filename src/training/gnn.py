@@ -45,6 +45,9 @@ class GNNTrainer(base):
         if lr_scaling is not None:
             self.lr_scheduler = lr_scaling(self.optimizer)          
     # @profile
+    def load_model(self,name='EdgeNet',**model_args):
+        self.model = get_model(name=name, **model_args).to(self.device)
+
     def train_epoch(self, data_loader):
         """Train for one epoch"""
         self.model.train()
@@ -53,13 +56,11 @@ class GNNTrainer(base):
         start_time = time.time()
         self.lr_scheduler.step()
         # Loop over training batches
-        print(type(data_loader))
         total = len(data_loader.dataset)
         batch_size = data_loader.batch_size
         t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
         print("train for one epoch")
         for i,data in t:    
-            print(i) 
             data = data.to(self.device)
             batch_target = data.y
             batch_weights_real = batch_target*self.real_weight
@@ -121,6 +122,25 @@ class GNNTrainer(base):
                          (summary['valid_loss'], summary['valid_acc']))
         return summary
 
+    @torch.no_grad()
+    def predict(self,data_loader):
+        self.model.eval()
+        #"predictions on test data"
+        target = []
+        pred  = []
+        total = len(data_loader.dataset)
+        batch_size = data_loader.batch_size
+        t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
+        for i,data in t:
+            batch_input = data.to(self.device)
+            batch_target = data.y
+            batch_output = self.model(batch_input)
+            pred.append(batch_output)
+            target.append(batch_target)
+        pred = torch.cat(pred)
+        target = torch.cat(target)        
+        return target.cpu().numpy(), pred.cpu().numpy()
+        
 
 def _test():
     t = GNNTrainer(output_dir='./')

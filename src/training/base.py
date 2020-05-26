@@ -73,6 +73,10 @@ class base(object):
     def build_model(self):
         """Virtual method to construct the model(s)"""
         raise NotImplementedError
+    
+    def load_model(self):
+        """Virtual method to construct the model(s)"""
+        raise NotImplementedError
 
     def train_epoch(self, data_loader):
         """Virtual method to train a model"""
@@ -80,6 +84,10 @@ class base(object):
 
     def evaluate(self, data_loader, extra_output=None):
         """Virtual method to evaluate a model"""
+        raise NotImplementedError
+
+    def predict(self, data_loader):
+        """Virtual method to predict a model"""
         raise NotImplementedError
 
     def train(self, train_data_loader, n_epochs, valid_data_loader=None):
