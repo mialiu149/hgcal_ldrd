@@ -124,27 +124,22 @@ class GNNTrainer(base):
 
     @torch.no_grad()
     def predict(self,data_loader):
+        """returns predictions and target value on test edges:  target, pred"""
         self.model.eval()
-        #"predictions on test data"
         target = []
         pred  = []
-        evts  =[]
         total = len(data_loader.dataset)
         batch_size = data_loader.batch_size
         t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
         for i,data in t:
-            #print(data.event_index[0])
             batch_input = data.to(self.device)
             batch_target = data.y
             batch_output = self.model(batch_input)
             pred.append(batch_output)
             target.append(batch_target)
-            evts.append(data.event_index[0])
         pred = torch.cat(pred)
-        target = torch.cat(target)        
-        return target.cpu().numpy(), pred.cpu().numpy()
-        #return target, pred, evts
-        
+        target = torch.cat(target)      
+        return target.cpu().numpy(), pred.cpu().numpy()        
 
 def _test():
     t = GNNTrainer(output_dir='./')
