@@ -25,10 +25,9 @@ class HitGraphDataset(Dataset):
     def __init__(self, root,
                  directed = True,
                  transform = None,
-                 pre_transform = None,
-                 pre_filter=None):
+                 pre_transform = None):
         self._directed = directed
-        super(HitGraphDataset, self).__init__(root, transform, pre_transform, pre_filter)
+        super(HitGraphDataset, self).__init__(root, transform, pre_transform)
 
     def download(self):
         pass #download from xrootd or something later
@@ -38,20 +37,15 @@ class HitGraphDataset(Dataset):
         if not hasattr(self,'input_files'):
             self.input_files = glob.glob(self.raw_dir+'/*.npz')
         return [f.split('/')[-1] for f in self.input_files]
-    
     @property
     def processed_file_names(self):
         if not hasattr(self,'processed_files'):
-            if self.pre_filter is not None:
-               proc_names =  ['data_{}.pt'.format(idx) for idx in self.pre_filter]
-            else:
-               proc_names = ['data_{}.pt'.format(idx) for idx in range(len(self.raw_file_names))]
+            proc_names = ['data_{}.pt'.format(idx) for idx in range(len(self.raw_file_names))]
             self.processed_files = [osp.join(self.processed_dir,name) for name in proc_names]
         return self.processed_files
     
-    def __len__(self):
+    def len(self):
         return len(self.processed_file_names)
-    
     #def get(self, idx):
     #    data = torch.load(self.processed_files[idx])
     #    return data
@@ -73,18 +67,21 @@ class HitGraphDataset(Dataset):
             x = g.X.astype(np.float32)
             edge_index = np.stack((i_out,i_in))
             y = g.y.astype(np.float32)
+            event_index = idx
             outdata = Data(x=torch.from_numpy(x),
                            edge_index=torch.from_numpy(edge_index),
-                           y=torch.from_numpy(y))
+                           y=torch.from_numpy(y),
+                           pt=g.pt,
+                           eta=g.eta,
+                           event_index=idx
+                           )
+
             if not self._directed and not outdata.is_undirected():
                 rows,cols = outdata.edge_index
                 temp = torch.stack((cols,rows))
                 outdata.edge_index = torch.cat([outdata.edge_index,temp],dim=-1)
                 outdata.y = torch.cat([outdata.y,outdata.y])
-        
             torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
-
-
 
 class HitDataset(Dataset):
     """PyTorch geometric dataset from processed hit information"""
@@ -140,7 +137,6 @@ class HitDataset(Dataset):
             dmatrix = xgb.DMatrix(g.X.astype(np.float32))
             pred = bst.predict(dmatrix).astype(np.float32)
             del(dmatrix)
-            
             
             outdata = Data(x=torch.from_numpy(x),
                             pos=torch.from_numpy(pos),

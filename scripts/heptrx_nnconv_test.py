@@ -86,16 +86,14 @@ def main(args):
     directed = False
     path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'muon_graph_v4_small')   #
     #path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'single_mu_v0')
-
     full_dataset = HitGraphDataset(path, directed=directed)
     fulllen = len(full_dataset)
     tv_frac = 0.2
     tv_num = math.ceil(fulllen*tv_frac)
     splits = np.cumsum([fulllen-2*tv_num,tv_num,tv_num])
-    test_dataset = HitGraphDataset(path, directed=directed, pre_filter=np.arange(start=splits[1],stop=splits[2]))
+    test_dataset = HitGraphDataset(path, directed=directed)[splits[1]:splits[2]]
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     test_samples = len(test_dataset)
-    
     print('Testing with %s samples'%test_samples)
 
     d = full_dataset
@@ -108,12 +106,18 @@ def main(args):
     print('Model: \n%s\nParameters: %i' % (tester.model, sum(p.numel()
           for p in tester.model.parameters())))
     tester.model.load_state_dict(torch.load(args.model)['model'])
-    y,pred = tester.predict(test_loader)
-    
+    y,pred,events = tester.predict(test_loader)
+    print(y[0], pred[0], events[0])   
     # plotting:
-    make_test_plots(y,pred,0.5,osp.join(tester.output_dir,'lastmodel.pdf'))
-
-
+   # make_test_plots(y,pred,0.5,osp.join(tester.output_dir,'lastmodel.pdf'))
+    # now need to load torch orgininal dataset again to find the hits associated with the edges
+    test = test_dataset.get(8842)
+ #   print(len(pred))
+ #   print(test)
+    print(test_dataset.get(7075))
+ #   print(test.y)
+ #   print(test.edge_index)
+ #   print(test.edge_index[0])
     
 if __name__ == "__main__":
 

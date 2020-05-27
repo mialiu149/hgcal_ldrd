@@ -28,7 +28,7 @@ fulldata = True
 sig_weight = 1.0
 bkg_weight = 0.15
 batch_size = 64
-n_epochs = 50
+n_epochs = 10
 lr = 0.01
 hidden_dim = 64
 n_iters = 12
@@ -104,10 +104,9 @@ def main(args):
 
     print("train, validation, testing splitting : ",fulllen, splits)
 
-    train_dataset = HitGraphDataset(path, directed=directed,pre_filter=np.arange(start=0,stop=splits[0]))
-    valid_dataset = HitGraphDataset(path, directed=directed,pre_filter=np.arange(start=splits[0],stop=splits[1]))  
-    test_dataset = HitGraphDataset(path, directed=directed, pre_filter=np.arange(start=splits[1],stop=fulllen))
-  
+    train_dataset = HitGraphDataset(path, directed=directed)[0:splits[0]]
+    valid_dataset = HitGraphDataset(path, directed=directed)[splits[0]:splits[1]]  
+    test_dataset = HitGraphDataset(path, directed=directed)[splits[1]:splits[2]] 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, pin_memory=True)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
