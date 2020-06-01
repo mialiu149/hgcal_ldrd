@@ -1,8 +1,3 @@
-"""
-This module defines a generic trainer for simple models and datasets.
-"""
-
-# System
 import time
 import math
 
@@ -17,16 +12,16 @@ from models import get_model
 # Locals
 from .base import base
 
-class GNNTrainer(base):
+class RegressionTrainer(base):
     """Trainer code for basic classification problems with binomial cross entropy."""
 
     def __init__(self, real_weight=1, fake_weight=1, **kwargs):
-        super(GNNTrainer, self).__init__(**kwargs)
+        super(RegressionTrainer, self).__init__(**kwargs)
         self.real_weight = real_weight
         self.fake_weight = fake_weight
 
-    def build_model(self, name='EdgeNet',
-                    loss_func='binary_cross_entropy',
+    def build_model(self, name='RegressionNet',
+                    loss_func='nll_loss',
                     optimizer='Adam', learning_rate=0.01, lr_scaling=None, lr_warmup_epochs=0,
                     **model_args):
         """Instantiate our model"""
@@ -45,7 +40,7 @@ class GNNTrainer(base):
         if lr_scaling is not None:
             self.lr_scheduler = lr_scaling(self.optimizer)          
     # @profile
-    def load_model(self,name='EdgeNet',**model_args):
+    def load_model(self,name='RegressionNet',**model_args):
         self.model = get_model(name=name, **model_args).to(self.device)
 
     def train_epoch(self, data_loader):
@@ -143,5 +138,5 @@ class GNNTrainer(base):
         return target.cpu().numpy(), pred.cpu().numpy()        
 
 def _test():
-    t = GNNTrainer(output_dir='./')
+    t = RegressionTrainer(output_dir='./')
     t.build_model()

@@ -15,6 +15,7 @@ from torch.utils.data import random_split
 from torch_geometric.utils import is_undirected, to_undirected
 from torch_geometric.data import (Data, Dataset)
 
+
 import xgboost as xgb
 
 # Local imports
@@ -25,8 +26,10 @@ class HitGraphDataset(Dataset):
     def __init__(self, root,
                  directed = True,
                  transform = None,
-                 pre_transform = None):
+                 pre_transform = None,
+                 model_file = None):
         self._directed = directed
+        self._model_file = model_file
         super(HitGraphDataset, self).__init__(root, transform, pre_transform)
 
     def download(self):
@@ -82,6 +85,7 @@ class HitGraphDataset(Dataset):
                 outdata.edge_index = torch.cat([outdata.edge_index,temp],dim=-1)
                 outdata.y = torch.cat([outdata.y,outdata.y])
             torch.save(outdata, osp.join(self.processed_dir, 'data_{}.pt'.format(idx)))
+     
 
 class HitDataset(Dataset):
     """PyTorch geometric dataset from processed hit information"""

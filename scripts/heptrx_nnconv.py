@@ -28,8 +28,8 @@ fulldata = True
 sig_weight = 1.0
 bkg_weight = 0.15
 batch_size = 64
-n_epochs = 10
-lr = 0.01
+n_epochs = 5
+lr = 0.001
 hidden_dim = 64
 n_iters = 12
 
@@ -87,12 +87,12 @@ def make_test_plots(target,output,threshold, plotoutput):
     false_neg = ((output < threshold) & (target > threshold))
     print('cut', threshold,
           'signa efficiency for true edges: ', true_pos,
-          'fake edge ', false_pos)
+          'fake edge ', sum(false_pos))
     return 
 
 def main(args):    
    # path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'single_mu_v0')
-    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'muon_graph_v4_small')
+    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'muon_graph_v4')
         
     full_dataset = HitGraphDataset(path, directed=directed)
     fulllen = 1000
@@ -116,7 +116,7 @@ def main(args):
     test_samples = len(test_dataset)
     print("Number of training samples   : ",train_samples)
     print("Number of validation samples : ",valid_samples)
-    print("Number of testing samples    :  ",test_samples)
+    print("Number of testing samples    : ",test_samples)
 
     d = full_dataset
     num_features = d.num_features
