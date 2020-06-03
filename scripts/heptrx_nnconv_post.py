@@ -41,7 +41,8 @@ bkg_weight = 1.0
 batch_size = 64
 hidden_dim = 64
 n_iters = 12
-
+nhitfeature = 5
+nhits = 12
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('using device %s'%device)
 def lr_scaling(optimizer):
@@ -172,10 +173,11 @@ def main(args):
        sum_edges_score = df.groupby(0, as_index=False).sum().to_numpy()
        ### average hit score and coordinates will be used for regression, sorted by average hit score
        sum_edges_score_ave = df.groupby(0, as_index=False).mean().sort_values(1,ascending=False).to_numpy()
-       x_filtered = x[sum_edges_score_ave[:,0].astype(int),0:4]
+       x_filtered = x[sum_edges_score_ave[:,0].astype(int),64:64+nhitfeature-1]
        x_filtered = np.concatenate((x_filtered,sum_edges_score_ave[:,1][:,np.newaxis]),axis=1)
+       x_filtered = xfiltered*np.array([1/1000,1/45,1/180,1/800,1,1])
        #hit_features.append(np.concatenate((x_filtered,sum_edges_score_ave[:,1][:,np.newaxis]),axis=1))
-       x_padded = np.zeros((12,5))
+       x_padded = np.zeros((nhits,nhitfeature+1))
        x_padded[:x_filtered.shape[0],:x_filtered.shape[1]] = x_filtered
        hit_features.append(x_padded)
        ### average number of edges, and number of average true edges.
@@ -201,7 +203,7 @@ def main(args):
     #print(nofilterscore[nofilterscore>0].shape[0]/nofilterscore.shape[0])
     #print(filteredscore[filteredscore>0].shape[0]/nofilterscore[nofilterscore>0].shape[0])
     target = torch.Tensor(pt_target)
-    print(hit_features)
+    
     features = torch.Tensor(hit_features)
     dataset = TensorDataset(features,target)
     dataloader = DataLoader(dataset)
