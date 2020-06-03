@@ -21,7 +21,7 @@ class RegressionTrainer(base):
         self.fake_weight = fake_weight
 
     def build_model(self, name='RegressionNet',
-                    loss_func='nll_loss',
+                    loss_func='L1Loss',
                     optimizer='Adam', learning_rate=0.01, lr_scaling=None, lr_warmup_epochs=0,
                     **model_args):
         """Instantiate our model"""
@@ -30,7 +30,7 @@ class RegressionTrainer(base):
         self.model = get_model(name=name, **model_args).to(self.device)
 
         # Construct the loss function
-        self.loss_func = getattr(nn.functional, loss_func)
+        self.loss_func = getattr(nn, loss_func)
 
         # Construct the optimizer
         self.optimizer = getattr(torch.optim, optimizer)(
@@ -63,7 +63,7 @@ class RegressionTrainer(base):
             batch_weights = batch_weights_real + batch_weights_fake
             self.optimizer.zero_grad()
             batch_output = self.model(data)
-            batch_loss = self.loss_func(batch_output, batch_target, weight=batch_weights)
+            batch_loss = self.loss_func(batch_output, batch_target)
             batch_loss.backward()
             batch_loss_item = batch_loss.item()            
             self.optimizer.step()
@@ -102,7 +102,7 @@ class RegressionTrainer(base):
             batch_loss = self.loss_func(batch_output, batch_target)
             sum_loss += batch_loss.item()
             # Count number of correct predictions
-            matches = ((batch_output > 0.5) == (batch_target > 0.5))
+            matches = (batch_output/batch_target)
             sum_correct += matches.sum().item()
             sum_total += matches.numel()
             #self.logger.debug(' batch %i loss %.3f correct %i total %i',
@@ -127,12 +127,11 @@ class RegressionTrainer(base):
         batch_size = data_loader.batch_size
         t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
         for i,data in t:
-            pt_filtered = [j for j in range(len(data.pt)) if data.pt[j]> 1]
             batch_input = data.to(self.device)
             batch_target = data.y
             batch_output = self.model(batch_input)
-            pred.append(batch_output[pt_filtered])
-            target.append(batch_target[pt_filtered])
+            pred.append(batch_output)
+            target.append(batch_target)
         pred = torch.cat(pred)
         target = torch.cat(target)      
         return target.cpu().numpy(), pred.cpu().numpy()        
