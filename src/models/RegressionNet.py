@@ -6,8 +6,7 @@ class RegressionNet(torch.nn.Module):
                                torch.nn.ReLU(),
                                torch.nn.Linear(hidden_dim[0], hidden_dim[1]),
                                torch.nn.ReLU(),
-                               torch.nn.Linear(hidden_dim[1], hidden_dim[2]),
-                               torch.nn.ReLU())
+                               torch.nn.Linear(hidden_dim[1], hidden_dim[2]))
         self.relu = torch.nn.ReLU()
         self.l2=torch.nn.Linear(hidden_dim[2], output_dim)
 
