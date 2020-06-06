@@ -38,13 +38,17 @@ from training.regression import RegressionTrainer
 
 sig_weight = 1.0
 bkg_weight = 1.0
-batch_size = 64
+batch_size = 64*4
 hidden_dim = 64
 n_iters = 12
-nhitfeature = 5
-nhits = 12
+nhitfeature = 6
+nhits_sel = 12
+lr = 1e-3
+n_epoch = 50
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('using device %s'%device)
+
 def lr_scaling(optimizer):
         from torch.optim.lr_scheduler import LambdaLR
         
@@ -114,14 +118,14 @@ def make_test_plots(target,output,threshold, plotoutput):
 
 def main(args):
     directed = False
-    threshold = 0.2
-    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'muon_graph_v4_small')   #
+    threshold = 0.
+    path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'muon_graph_v4')   #
     #path = osp.join(os.environ['GNN_TRAINING_DATA_ROOT'], 'single_mu_v0')
     full_dataset = HitGraphDataset(path, directed=directed)
     full_loader = DataLoader(full_dataset, batch_size=batch_size, shuffle=False)
 
     fulllen = len(full_dataset)
-    tv_frac = 0.01
+    tv_frac = 1.0
     tv_num = math.ceil(fulllen*tv_frac)
     splits = np.cumsum([fulllen-2*tv_num,tv_num,tv_num])
 
@@ -175,11 +179,11 @@ def main(args):
        sum_edges_score_ave = df.groupby(0, as_index=False).mean().sort_values(1,ascending=False).to_numpy()
        x_filtered = x[sum_edges_score_ave[:,0].astype(int),64:64+nhitfeature-1]
        x_filtered = np.concatenate((x_filtered,sum_edges_score_ave[:,1][:,np.newaxis]),axis=1)
-       x_filtered = xfiltered*np.array([1/1000,1/45,1/180,1/800,1,1])
-       #hit_features.append(np.concatenate((x_filtered,sum_edges_score_ave[:,1][:,np.newaxis]),axis=1))
-       x_padded = np.zeros((nhits,nhitfeature+1))
-       x_padded[:x_filtered.shape[0],:x_filtered.shape[1]] = x_filtered
-       hit_features.append(x_padded)
+       x_filtered = x_filtered*np.array([1/1000,1/45,1/180,1/800,1,1])
+       x_padded = np.zeros((nhits_sel,nhitfeature))
+       if x_filtered.shape[0] < nhits_sel: x_padded[:x_filtered.shape[0],:x_filtered.shape[1]] = x_filtered
+       else: x_padded = x_filtered[:nhits_sel,:]
+       hit_features.append(x_padded.flatten())
        ### average number of edges, and number of average true edges.
        sum_edges = df.groupby(0, as_index=False).count().to_numpy()
        sum_true_edges = pd.DataFrame(hits_true_score.T).groupby(0, as_index=False).sum().to_numpy()
@@ -189,35 +193,48 @@ def main(args):
        n_edges.append(sum_edges)
        ntrue_edges.append(sum_true_edges)
        nhits.append(sum_edges.shape)
-       outdata = Data(x=torch.from_numpy(x_padded),
-                            y=torch.from_numpy(data.pt))
-        # plotting:
-    #filteredscore = np.concatenate(ntrue_edges)[:,1][np.concatenate(scores)[:,1]>0.2]
-    #print(filteredscore.shape[0])
-    #print(filteredscore[filteredscore>0].shape[0])
-    #print(filteredscore[filteredscore>0].shape[0]/filteredscore.shape[0])
 
-    #nofilterscore = np.concatenate(ntrue_edges)[:,1]
-    #print(nofilterscore.shape[0])
-    #print(nofilterscore[nofilterscore>0].shape[0])
-    #print(nofilterscore[nofilterscore>0].shape[0]/nofilterscore.shape[0])
-    #print(filteredscore[filteredscore>0].shape[0]/nofilterscore[nofilterscore>0].shape[0])
-    target = torch.Tensor(pt_target)
-    
+        # plotting:
+    target = torch.Tensor(pt_target)   
     features = torch.Tensor(hit_features)
     dataset = TensorDataset(features,target)
-    dataloader = DataLoader(dataset)
-
+    tv_frac = 0.8
+    train_set, val_set = torch.utils.data.random_split(dataset, [math.ceil(len(dataset)*tv_frac),len(pt_target)-math.ceil(len(dataset)*tv_frac)])
+    train_dataloader = DataLoader(train_set)
+    val_dataloader = DataLoader(val_set)
 
     regressor = RegressionTrainer(real_weight=sig_weight, fake_weight=bkg_weight, 
     device=device, output_dir = os.path.abspath(os.path.join(os.path.dirname( args.model ), '..')))
-    regressor.build_model(learning_rate=0.01, lr_scaling=lr_scaling,input_dim=num_features, hidden_dim=[64,32,32])
-    train_summary = regressor.train(dataloader, n_epochs=2, valid_data_loader=dataloader)
-    net = RegressionNet()
-    print(net)
+    regressor.build_model(learning_rate=lr, lr_scaling=lr_scaling,input_dim=nhits_sel*nhitfeature, hidden_dim=[64,32,32])
+    train_summary = regressor.train(train_dataloader, n_epochs=n_epoch, valid_data_loader=val_dataloader)
+    targ,pred = regressor.predict(val_dataloader)
+    print(train_summary)
+    print(targ)
+    print(pred)
 
     figs = []
     #factorize the plotting part
+    fig,axes = plt.subplots(figsize=(12, 7))
+    plt.plot(train_summary['train_loss'],label = 'train loss')
+    plt.title('train loss')
+    figs.append(fig)
+
+    fig,axes = plt.subplots(figsize=(12, 7))
+    plt.plot(train_summary['valid_loss'],label = 'valid loss')
+    plt.title('validation loss')
+    figs.append(fig)
+    
+    fig,axes = plt.subplots(figsize=(12, 7))
+    _, bins,_ = axes.hist([targ,pred], bins=100,range = (0,100),color=['r','b'],label=['target','pred'],histtype='step',fill=False)
+    plt.title('pt distribution')
+   # plt.xlim(0,100)
+
+    figs.append(fig)
+    fig,axes = plt.subplots(figsize=(12, 7))
+    plt.scatter(pred,targ)
+    plt.xlim(0,100)
+    plt.ylim(0,100)
+    figs.append(fig)
     fig,axes = plt.subplots(figsize=(12, 7))
     _, bins,_ = axes.hist(np.concatenate(scores)[:,1],bins=100,color=['b'],label=['edge score'],histtype='step',fill=False)
     plt.title("Edge classifier score (per hit) on test data")
@@ -228,8 +245,17 @@ def main(args):
     figs.append(fig)
 
     fig,axes = plt.subplots(figsize=(12, 7))
-    _, bins,_ = axes.hist(np.concatenate(nhits),bins=100,color=['b'],label=['edge score'],histtype='step',fill=False)
-    plt.title("Edge classifier score on test data")
+    _, bins,_ = axes.hist(np.concatenate(nhits),bins=100,color=['b'],label=['Number of hits'],histtype='step',fill=False)
+    plt.title("Number of hits")
+    plt.ylabel("Number of events")
+    plt.xlabel("Number of hits")
+    plt.legend(loc='upper left')
+    plt.yscale('log')
+    figs.append(fig)
+
+    fig,axes = plt.subplots(figsize=(12, 7))
+    _, bins,_ = axes.hist(np.concatenate(totalscores)[:,1],bins=100,color=['b'],label=['Total score'],histtype='step',fill=False)
+    plt.title("sum of edge classifier score per hit")
     plt.ylabel("Number of edges")
     plt.xlabel("Classifier score")
     plt.legend(loc='upper left')
@@ -237,16 +263,8 @@ def main(args):
     figs.append(fig)
 
     fig,axes = plt.subplots(figsize=(12, 7))
-    _, bins,_ = axes.hist(np.concatenate(totalscores)[:,1],bins=100,color=['b'],label=['edge score sum'],histtype='step',fill=False)
-    plt.title("Edge classifier score on test data")
-    plt.ylabel("Number of edges")
-    plt.xlabel("Classifier score")
-    plt.legend(loc='upper left')
-    plt.yscale('log')
-    figs.append(fig)
-    fig,axes = plt.subplots(figsize=(12, 7))
-    _, bins,_ = axes.hist(np.concatenate(n_edges)[:,1],bins=100,color=['b'],label=['edge number'],histtype='step',fill=False)
-    plt.title("Edge classifier score on test data")
+    _, bins,_ = axes.hist(np.concatenate(n_edges)[:,1],bins=100,color=['b'],label=['Number of edges'],histtype='step',fill=False)
+    plt.title("Number of edges per hit")
     plt.ylabel("Number of edges")
     plt.xlabel("Classifier score")
     plt.legend(loc='upper left')
@@ -254,7 +272,7 @@ def main(args):
     figs.append(fig)
     fig,axes = plt.subplots(figsize=(12, 7))
     _, bins,_ = axes.hist(np.concatenate(ntrue_edges)[:,1][np.concatenate(scores)[:,1]>0.7],bins=100,color=['b'],label=['true edge number'],histtype='step',fill=False)
-    plt.title("Edge classifier score on test data")
+    plt.title("Number of true edges per hit")
     plt.ylabel("Number of edges")
     plt.xlabel("Classifier score")
     plt.legend(loc='upper left')

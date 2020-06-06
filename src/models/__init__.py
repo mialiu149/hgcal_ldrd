@@ -5,8 +5,11 @@ Python module for holding our PyTorch models.
 from .EdgeNet import EdgeNet
 from .gnn_geometric import GNNSegmentClassifier    
 from .PointNet import PointNet
+from .RegressionNet import RegressionNet
+
 
 _models = {'EdgeNet': EdgeNet,
+           'RegressionNet': RegressionNet,
            'heptrkx_segment_classifier': GNNSegmentClassifier,
            'PointNet': PointNet}
 

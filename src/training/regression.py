@@ -21,7 +21,7 @@ class RegressionTrainer(base):
         self.fake_weight = fake_weight
 
     def build_model(self, name='RegressionNet',
-                    loss_func='L1Loss',
+                    loss_func='l1_loss',
                     optimizer='Adam', learning_rate=0.01, lr_scaling=None, lr_warmup_epochs=0,
                     **model_args):
         """Instantiate our model"""
@@ -30,7 +30,7 @@ class RegressionTrainer(base):
         self.model = get_model(name=name, **model_args).to(self.device)
 
         # Construct the loss function
-        self.loss_func = getattr(nn, loss_func)
+        self.loss_func = getattr(nn.functional, loss_func)
 
         # Construct the optimizer
         self.optimizer = getattr(torch.optim, optimizer)(
@@ -55,9 +55,10 @@ class RegressionTrainer(base):
         batch_size = data_loader.batch_size
         t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
         print("train for one epoch")
-        for i,data in t:    
+        for i,(data,batch_target) in t:    
+            #print(data)
             data = data.to(self.device)
-            batch_target = data.y
+            batch_target = batch_target.to(self.device)
             batch_weights_real = batch_target*self.real_weight
             batch_weights_fake = (1 - batch_target)*self.fake_weight
             batch_weights = batch_weights_real + batch_weights_fake
@@ -94,12 +95,12 @@ class RegressionTrainer(base):
         total = len(data_loader.dataset)
         batch_size = data_loader.batch_size
         t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
-        for i, data in t:            
+        for i,(batch_input,batch_target) in t: 
+            batch_input=batch_input.to(self.device)
+            batch_target= batch_target.to(self.device)   
             # self.logger.debug(' batch %i', i)
-            batch_input = data.to(self.device)
-            batch_target = data.y
             batch_output = self.model(batch_input)
-            batch_loss = self.loss_func(batch_output, batch_target)
+            batch_loss = self.loss_func(1/batch_output, 1/batch_target)
             sum_loss += batch_loss.item()
             # Count number of correct predictions
             matches = (batch_output/batch_target)
@@ -126,9 +127,9 @@ class RegressionTrainer(base):
         total = len(data_loader.dataset)
         batch_size = data_loader.batch_size
         t = tqdm.tqdm(enumerate(data_loader),total=int(math.ceil(total/batch_size)))
-        for i,data in t:
-            batch_input = data.to(self.device)
-            batch_target = data.y
+        for i,(batch_input,batch_target) in t: 
+            batch_input = batch_input.to(self.device) 
+            batch_target = batch_target.to(self.device)  
             batch_output = self.model(batch_input)
             pred.append(batch_output)
             target.append(batch_target)

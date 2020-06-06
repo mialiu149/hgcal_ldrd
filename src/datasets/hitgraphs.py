@@ -78,7 +78,6 @@ class HitGraphDataset(Dataset):
                            eta=g.eta,
                            event_index=idx
                            )
-
             if not self._directed and not outdata.is_undirected():
                 rows,cols = outdata.edge_index
                 temp = torch.stack((cols,rows))

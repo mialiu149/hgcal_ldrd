@@ -11,4 +11,4 @@ class RegressionNet(torch.nn.Module):
         self.l2=torch.nn.Linear(hidden_dim[2], output_dim)
 
     def forward(self, X):
-        return self.l2(self.relu(self.l1(X)))
+        return self.l2(self.relu(self.l1(X))).squeeze(-1)

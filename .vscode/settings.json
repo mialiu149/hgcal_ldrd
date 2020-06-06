@@ -1,9 +1,9 @@
 {
 	"terminal.integrated.env.linux": {
-        "GNN_TRAINING_DATA_ROOT":"/home/liumy871227/data/",
+        "GNN_TRAINING_DATA_ROOT":"/home/users/mliu/data/",
         "PYTHONPATH" : "${workspaceFolder}/src:${env:PYTHONPATH}"
     },
-    "python.pythonPath": "/home/liumy871227/miniconda/envs/torch/bin/python",
+    "python.pythonPath": "/home/users/mliu/miniconda/envs/torch/bin/python",
     "python.envFile": "${workspaceFolder}/dev.env",
     "python.terminal.activateEnvInCurrentTerminal": true,
 }

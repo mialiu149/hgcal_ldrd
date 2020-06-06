@@ -28,8 +28,8 @@ fulldata = True
 sig_weight = 1.0
 bkg_weight = 0.15
 batch_size = 64
-n_epochs = 5
-lr = 0.001
+n_epochs = 200
+lr = 0.0001
 hidden_dim = 64
 n_iters = 12
 
@@ -154,7 +154,7 @@ def main(args):
         return LambdaLR(optimizer, lr_warmup)
     
     trainer.build_model(name='EdgeNet', loss_func='binary_cross_entropy',
-                        optimizer='Adam', learning_rate=0.01, lr_scaling=lr_scaling,
+                        optimizer='Adam', learning_rate=lr, lr_scaling=lr_scaling,
                         input_dim=num_features, hidden_dim=hidden_dim, n_iters=n_iters)
     
     print('made the hep.trkx trainer!')
