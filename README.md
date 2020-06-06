@@ -8,13 +8,13 @@ export PATH="$HOME/miniconda/bin:$PATH"
 export CPATH=/usr/local/cuda/include:$CPATH
 echo export PATH="$HOME/miniconda/bin:$PATH" >> ~/.bashrc
 echo export CPATH=/usr/local/cuda/include:$CPATH >> ~/.bashrc
-conda create -n torch -c pytorch Python=3.6 numpy cuda100 magma-cuda100 pytorch
+conda create -n torch -c pytorch Python=3.6 numpy cuda100 magma-cuda100 pytorch torchvision cudatoolkit=10.1
 conda init bash
 source $HOME/.bashrc
 conda activate torch
 conda install pandas matplotlib jupyter nbconvert==5.4.1
 conda install -c conda-forge tqdm
-pip install uproot scipy sklearn --user
+pip install uproot scipy xgboost sklearn --user
 pip install networkx
 #get this repo
 git clone git@github.com:mialiu149/heptrkx-gnn-tracking.git 
